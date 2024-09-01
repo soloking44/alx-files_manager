@@ -8,15 +8,15 @@ import FilesController from '../controllers/FilesController';
 
 const router = Router();
 
-// see status and stats db
+// check status and stats of db
 router.get('/status', AppController.getStatus);
 router.get('/stats', AppController.getStats);
 
-// to connect and disconnect user
+// connect and disconnect user
 router.get('/connect', AuthController.getConnect);
 router.get('/disconnect', AuthController.getDisconnect);
 
-// method to upload files
+// upload files
 router.post('/files', FilesController.postUpload);
 router.get('/files/:id', FilesController.getShow);
 router.get('/files', FilesController.getIndex);
@@ -25,11 +25,11 @@ router.get('/files', FilesController.getIndex);
 router.put('/files/:id/publish', FilesController.putPublish);
 router.put('/files/:id/unpublish', FilesController.putUnpublish);
 
-// This is user
+// user
 router.post('/users', UsersController.postNew);
 router.get('/users/me', UsersController.getMe);
 
-// content of a file
+// file content
 router.get('/files/:id/data', FilesController.getFile);
 
 export default router;

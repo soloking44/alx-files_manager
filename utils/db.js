@@ -1,46 +1,42 @@
-import { MongoClient } from 'mongodb';
-
-const host = process.env.DB_HOST || 'localhost';
-const port = process.env.DB_PORT || 27017;
-const database = process.env.DB_DATABASE || 'files_manager';
-const url = `mongodb://${host}:${port}/`;
+import {
+  MongoClient,
+} from 'mongodb';
+import {
+  env,
+} from 'process';
 
 class DBClient {
   constructor() {
-    this.db = null;
-    this.connect();
-  }
-
-  async connect() {
-    try {
-      const client = await MongoClient.connect(url, { useUnifiedTopology: true });
-      this.db = client.db(database);
-      console.log('Connected successfully to MongoDB');
-    } catch (error) {
-      console.error(`Failed to connect to MongoDB: ${error.message}`);
-    }
+    this.host = env.DB_HOST || 'localhost';
+    this.port = env.DB_PORT || 27017;
+    this.dbName = env.DB_DATABASE || 'files_manager';
+    MongoClient(`mongodb://${this.host}:${this.port}`, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    }).connect().then((client) => {
+      this.client = client;
+      this.db = this.client.db(this.dbName);
+    }).catch((err) => {
+      console.error(err.message);
+    });
   }
 
   isAlive() {
-    return !!this.db;
+    if (this.db) return true;
+    return false;
   }
 
   async nbUsers() {
-    if (!this.db) throw new Error('Database connection not established');
-    return this.db.collection('users').countDocuments();
-  }
-
-  async getUser(query) {
-    if (!this.db) throw new Error('Database connection not established');
-    const user = await this.db.collection('users').findOne(query);
-    return user;
+    const collection = this.db.collection('users');
+    return collection.countDocuments();
   }
 
   async nbFiles() {
-    if (!this.db) throw new Error('Database connection not established');
-    return this.db.collection('files').countDocuments();
+    const collection = this.db.collection('files');
+    return collection.countDocuments();
   }
 }
 
 const dbClient = new DBClient();
+
 export default dbClient;

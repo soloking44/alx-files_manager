@@ -1,12 +1,18 @@
-const redis = require('redis');
-const { promisify } = require('util');
+/**
+ * It has redis client class with helper processes
+ */
+import {
+  createClient,
+} from 'redis';
+import {
+  promisify,
+} from 'util';
 
 class RedisClient {
   constructor() {
-    this.client = redis.createClient();
-    this.getAsync = promisify(this.client.get).bind(this.client);
-    this.client.on('error', (error) => {
-      console.log(`Redis client not connected to the server: ${error.message}`);
+    this.client = createClient();
+    this.client.on('error', (err) => {
+      console.log(err.message);
     });
   }
 
@@ -15,18 +21,20 @@ class RedisClient {
   }
 
   async get(key) {
-    return this.getAsync(key);
+    const getAsync = promisify(this.client.get).bind(this.client);
+    return getAsync(key);
   }
 
   async set(key, value, duration) {
-    this.client.setex(key, duration, value);
+    const setAsync = promisify(this.client.set).bind(this.client);
+    return setAsync(key, value, 'EX', duration);
   }
 
   async del(key) {
-    this.client.del(key);
+    const delAsync = promisify(this.client.del).bind(this.client);
+    return delAsync(key);
   }
 }
 
 const redisClient = new RedisClient();
-
 export default redisClient;

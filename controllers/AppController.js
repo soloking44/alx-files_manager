@@ -1,41 +1,29 @@
-import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
+import dbClient from '../utils/db';
 
-/**
- * AppController class
- */
 class AppController {
   /**
-   * Retrieves the status of redisClient and dbClient, sets the response status
-   * code to 200, and sends the status of the clients in a JSON format in the
-   * response.
-   *
-   * @param {Object} request - The request object.
-   * @param {Object} response - The response object.
-   * @return {JSON} A JSON object containing the status of redisClient and
-   * dbClient.
+   * Return the status of Redis and the database.
+   * Example: { "redis": true, "db": true }
    */
   static getStatus(request, response) {
-    response.statusCode = 200;
-    response.send({
+    const status = {
       redis: redisClient.isAlive(),
       db: dbClient.isAlive(),
-    });
+    };
+    response.status(200).send(status);
   }
 
   /**
-   * Retrieves statistics from database and sends results in response.
-   *
-   * @param {Object} request - the request object
-   * @param {Object} response - the response object
-   * @return {Promise} a Promise that resolves when the response is sent
+   * Return the count of users and files in the database.
+   * Example: { "users": 12, "files": 1231 }
    */
   static async getStats(request, response) {
-    response.statusCode = 200;
-    response.send({
+    const stats = {
       users: await dbClient.nbUsers(),
       files: await dbClient.nbFiles(),
-    });
+    };
+    response.status(200).send(stats);
   }
 }
 

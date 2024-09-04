@@ -1,44 +1,47 @@
-import DBClient from './utils/db';
+import Queue from 'bull';
+import imageThumbnail from 'image-thumbnail';
+import fs from 'fs';
+import dbClient from './utils/db';
 
-const Bull = require('bull');
-const { ObjectId } = require('mongodb');
-const imageThumbnail = require('image-thumbnail');
-const fs = require('fs');
-const fileQueue = new Bull('fileQueue');
-const userQueue = new Bull('userQueue');
-
-const createImageThumbnail = async (path, options) => {
-  try {
-    const thumbnail = await imageThumbnail(path, options);
-    const pathNail = `${path}_${options.width}`;
-
-    await fs.writeFileSync(pathNail, thumbnail);
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-fileQueue.process(async (job) => {
-  const { fileId } = job.data;
-  if (!fileId) throw Error('Missing fileId');
-
-  const { userId } = job.data;
-  if (!userId) throw Error('Missing userId');
-
-  const fileDocument = await DBClient.db.collection('files').findOne({ _id: ObjectId(fileId), userId: ObjectId(userId) });
-  if (!fileDocument) throw Error('File not found');
-
-  createImageThumbnail(fileDocument.localPath, { width: 500 });
-  createImageThumbnail(fileDocument.localPath, { width: 250 });
-  createImageThumbnail(fileDocument.localPath, { width: 100 });
+const fileQueue = new Queue('fileQueue', {
+  redis: {
+    host: '127.0.0.1',
+    port: 6379,
+  },
 });
 
-userQueue.process(async (job) => {
-  const { userId } = job.data;
-  if (!userId) throw Error('Missing userId');
+const generateThumbnails = async (width, localPath) => {
+  const thumbnail = await imageThumbnail(localPath, {
+    width,
+  });
+  return thumbnail;
+};
 
-  const userDocument = await DBClient.db.collection('users').findOne({ _id: ObjectId(userId) });
-  if (!userDocument) throw Error('User not found');
+fileQueue.process(async (job, done) => {
+  const { userId, fileId } = job.data;
+  if (!userId) {
+    done(new Error('Missing userId'));
+  }
+  if (!fileId) {
+    done(new Error('Missing fileId'));
+  }
 
-  console.log(`Welcome ${userDocument.email}`);
+  const files = dbClient.db.collection('files');
+  const file = await files.findOne({ _id: fileId, userId });
+  if (!file) {
+    done(new Error('File not found'));
+  }
+
+  // generate thumbnail
+  const thumbnail500 = await generateThumbnails(500, file.localPath);
+  const thumbnail250 = await generateThumbnails(250, file.localPath);
+  const thumbnail100 = await generateThumbnails(100, file.localPath);
+
+  const localPath500 = `${file.localPath}_500`;
+  const localPath250 = `${file.localPath}_250`;
+  const localPath100 = `${file.localPath}_100`;
+
+  await fs.promises.writeFile(localPath500, thumbnail500);
+  await fs.promises.writeFile(localPath250, thumbnail250);
+  await fs.promises.writeFile(localPath100, thumbnail100);
 });

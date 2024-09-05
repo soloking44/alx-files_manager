@@ -208,52 +208,85 @@ class FilesController {
     }
   }
 
-  /**
-   * @method getIndex
-   * @description retrieve files based on parentid and pagination
-   * @param {Object} req - Express request object
-   * @param {Object} res - Express response object
-   * @returns {Object} - Express response object
-   */
+/**
+ * @method getIndex
+ * @description retrieve files based on parentid and pagination
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} - Express response object
+ */
 static async getIndex(req, res) {
-  const user = await FilesController.retrieveUserBasedOnToken(req);
-  if (!user) {
-    res.status(401).send({ error: 'Unauthorized' });
-    return;
-  }
-
-  const { parentId, page } = req.query;
-  const files = dbClient.db.collection('files');
-
-  // Perform pagination
-  const pageSize = 20;
-  let pageNumber = parseInt(page, 10) || 1; // Ensure page is an integer and defaults to 1
-  const skip = (pageNumber - 1) * pageSize;
-
-  let query = { userId: user._id.toString() };
-
-  // If parentId exists, ensure it's converted to the correct type
-  if (parentId) {
-    query.parentId = parentId;  // Handle parentId here; ensure it's valid if needed
-  }
-
   try {
+    const user = await FilesController.retrieveUserBasedOnToken(req);
+    if (!user) {
+      res.status(401).send({
+        error: 'Unauthorized',
+      });
+      return;
+    }
+    const {
+      parentId,
+      page,
+    } = req.query;
+    const files = dbClient.db.collection('files');
+
+    // Validate input
+    if (parentId && !ObjectId.isValid(parentId)) {
+      res.status(400).send({
+        error: 'Invalid parentId',
+      });
+      return;
+    }
+
+    // Perform pagination
+    const pageSize = 20;
+    let pageNumber = page;
+    if (!pageNumber) {
+      pageNumber = 1;
+    }
+    const skip = (pageNumber - 1) * pageSize;
+
+    // if parentId is not provided retrieve all files
+    let query;
+    if (!parentId) {
+      query = {
+        userId: user._id.toString(),
+      };
+    } else {
+      query = {
+        userId: user._id.toString(),
+        parentId: ObjectId(parentId),
+      };
+    }
+
+    // handle pagination using aggregation
     const result = await files.aggregate([
-      { $match: query },
-      { $skip: skip },
-      { $limit: pageSize },
+      {
+        $match: query,
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: pageSize,
+      },
     ]).toArray();
 
     const finalResult = result.map((file) => {
-      const newFile = { ...file, id: file._id };
+      const newFile = {
+        ...file,
+        id: file._id,
+      };
       delete newFile._id;
       delete newFile.localPath;
       return newFile;
     });
-
     res.status(200).send(finalResult);
   } catch (error) {
-    res.status(500).send({ error: 'Error fetching files' });
+    console.error(error);
+    res.status(500).send({
+      error: 'Internal Server Error',
+    });
   }
 }
 

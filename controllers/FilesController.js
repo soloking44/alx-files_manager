@@ -290,6 +290,37 @@ static async getIndex(req, res) {
   }
 }
 
+    // handle pagination using aggregation
+    const result = await files.aggregate([
+      {
+        $match: query,
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: pageSize,
+      },
+    ]).toArray();
+
+    const finalResult = result.map((file) => {
+      const newFile = {
+        ...file,
+        id: file._id,
+      };
+      delete newFile._id;
+      delete newFile.localPath;
+      return newFile;
+    });
+    res.status(200).send(finalResult);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      error: 'Internal Server Error',
+    });
+  }
+}
+
   /**
    * @method putPublish
    * @description set isPublic to true on the file document based on the ID
